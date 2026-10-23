@@ -1,0 +1,267 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { fabric } from 'fabric';
+import {
+  Square,
+  Circle,
+  Type,
+  Image as ImageIcon,
+  Download,
+  Trash2,
+  Layers,
+  Move
+} from 'lucide-react';
+
+const App = () => {
+  const canvasRef = useRef(null);
+  const fabricCanvas = useRef(null);
+  const [selectedObject, setSelectedObject] = useState(null);
+  const [fillColor, setFillColor] = useState('#000000');
+
+  useEffect(() => {
+    // Initialize Fabric Canvas
+    fabricCanvas.current = new fabric.Canvas(canvasRef.current, {
+      height: 600,
+      width: 800,
+      backgroundColor: '#ffffff',
+    });
+
+    // Handle object selection
+    fabricCanvas.current.on('selection:created', (e) => setSelectedObject(e.selected[0]));
+    fabricCanvas.current.on('selection:updated', (e) => setSelectedObject(e.selected[0]));
+    fabricCanvas.current.on('selection:cleared', () => setSelectedObject(null));
+
+    return () => {
+      fabricCanvas.current.dispose();
+    };
+  }, []);
+
+  const addRect = () => {
+    const rect = new fabric.Rect({
+      top: 100,
+      left: 100,
+      width: 100,
+      height: 100,
+      fill: fillColor,
+    });
+    fabricCanvas.current.add(rect);
+    fabricCanvas.current.setActiveObject(rect);
+  };
+
+  const addCircle = () => {
+    const circle = new fabric.Circle({
+      top: 150,
+      left: 150,
+      radius: 50,
+      fill: fillColor,
+    });
+    fabricCanvas.current.add(circle);
+    fabricCanvas.current.setActiveObject(circle);
+  };
+
+  const addText = () => {
+    const text = new fabric.IText('Double click to edit', {
+      top: 200,
+      left: 200,
+      fontSize: 20,
+      fill: fillColor,
+    });
+    fabricCanvas.current.add(text);
+    fabricCanvas.current.setActiveObject(text);
+  };
+
+  const deleteSelected = () => {
+    const activeObjects = fabricCanvas.current.getActiveObjects();
+    fabricCanvas.current.remove(...activeObjects);
+    fabricCanvas.current.discardActiveObject();
+  };
+
+  const downloadDesign = () => {
+    const dataURL = fabricCanvas.current.toDataURL({
+      format: 'png',
+      quality: 1,
+    });
+    const link = document.createElement('a');
+    link.download = 'my-design.png';
+    link.href = dataURL;
+    link.click();
+  };
+
+  const updateFillColor = (color) => {
+    setFillColor(color);
+    if (selectedObject) {
+      selectedObject.set('fill', color);
+      fabricCanvas.current.renderAll();
+    }
+  };
+
+  return (
+    <div className="flex h-screen bg-gray-100 font-sans">
+      {/* Left Toolbar */}
+      <div className="w-20 bg-white border-r flex flex-col items-center py-6 gap-8 shadow-sm">
+        <div className="font-bold text-blue-600 text-xl mb-4">C-Lite</div>
+
+        <button
+          onClick={addRect}
+          className="p-3 hover:bg-gray-100 rounded-xl transition-colors group relative"
+          title="Add Rectangle"
+        >
+          <Square className="w-6 h-6 text-gray-600 group-hover:text-blue-500" />
+        </button>
+
+        <button
+          onClick={addCircle}
+          className="p-3 hover:bg-gray-100 rounded-xl transition-colors group relative"
+          title="Add Circle"
+        >
+          <Circle className="w-6 h-6 text-gray-600 group-hover:text-blue-500" />
+        </button>
+
+        <button
+          onClick={addText}
+          className="p-3 hover:bg-gray-100 rounded-xl transition-colors group relative"
+          title="Add Text"
+        >
+          <Type className="w-6 h-6 text-gray-600 group-hover:text-blue-500" />
+        </button>
+
+        <div className="mt-auto flex flex-col gap-4">
+          <button
+            onClick={deleteSelected}
+            className="p-3 hover:bg-red-50 rounded-xl transition-colors group relative"
+            title="Delete Selected"
+          >
+            <Trash2 className="w-6 h-6 text-gray-600 group-hover:text-red-500" />
+          </button>
+          <button
+            onClick={downloadDesign}
+            className="p-3 hover:bg-blue-50 rounded-xl transition-colors group relative"
+            title="Export PNG"
+          >
+            <Download className="w-6 h-6 text-gray-600 group-hover:text-blue-500" />
+          </button>
+        </div>
+      </div>
+
+      {/* Main Workspace */}
+      <div className="flex-1 flex flex-col items-center justify-center p-8 overflow-hidden relative">
+        <div className="mb-4 flex gap-4 items-center bg-white px-4 py-2 rounded-full shadow-sm border">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500 font-medium">Fill Color:</span>
+            <input
+              type="color"
+              value={fillColor}
+              onChange={(e) => updateFillColor(e.target.value)}
+              className="w-6 h-6 border-none cursor-pointer rounded-full"
+            />
+          </div>
+          <div className="h-4 w-px bg-gray-300" />
+          <div className="text-xs text-gray-400 italic">
+            Drag to move • Resize handles to scale • Double click text to edit
+          </div>
+        </div>
+
+        <div className="shadow-2xl border-8 border-white rounded-sm bg-white overflow-hidden">
+          <canvas ref={canvasRef} />
+        </div>
+      </div>
+
+      {/* Right Properties Panel */}
+      <div className="w-64 bg-white border-l p-6 flex flex-col gap-6 shadow-sm">
+        <h3 className="font-bold text-gray-700 text-lg">Properties</h3>
+
+        {selectedObject ? (
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="text-xs font-semibold text-gray-400 uppercase block mb-2">Position</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-gray-400">X</span>
+                  <input
+                    type="number"
+                    value={Math.round(selectedObject.left)}
+                    onChange={(e) => {
+                      selectedObject.set('left', parseInt(e.target.value));
+                      fabricCanvas.current.renderAll();
+                    }}
+                    className="border rounded px-2 py-1 text-sm"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-gray-400">Y</span>
+                  <input
+                    type="number"
+                    value={Math.round(selectedObject.top)}
+                    onChange={(e) => {
+                      selectedObject.set('top', parseInt(e.target.value));
+                      fabricCanvas.current.renderAll();
+                    }}
+                    className="border rounded px-2 py-1 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-gray-400 uppercase block mb-2">Dimensions</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-gray-400">Width</span>
+                  <input
+                    type="number"
+                    value={Math.round(selectedObject.width * selectedObject.scaleX)}
+                    onChange={(e) => {
+                      selectedObject.set('width', parseInt(e.target.value) / selectedObject.scaleX);
+                      fabricCanvas.current.renderAll();
+                    }}
+                    className="border rounded px-2 py-1 text-sm"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-gray-400">Height</span>
+                  <input
+                    type="number"
+                    value={Math.round(selectedObject.height * selectedObject.scaleY)}
+                    onChange={(e) => {
+                      selectedObject.set('height', parseInt(e.target.value) / selectedObject.scaleY);
+                      fabricCanvas.current.renderAll();
+                    }}
+                    className="border rounded px-2 py-1 text-sm"
+                  }
+                  className="border rounded px-2 py-1 text-sm"
+                />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <button
+                onClick={() => {
+                  selectedObject.bringToFront();
+                  fabricCanvas.current.renderAll();
+                }}
+                className="w-full py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium transition-colors mb-2"
+              >
+                Bring to Front
+              </button>
+              <button
+                onClick={() => {
+                  selectedObject.sendToBack();
+                  fabricCanvas.current.renderAll();
+                }}
+                className="w-full py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium transition-colors"
+              >
+                Send to Back
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="text-gray-400 text-sm italic text-center mt-10">
+            Select an object to edit its properties
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default App;
