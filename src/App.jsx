@@ -1,14 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { fabric } from 'fabric';
+import * as fabric from 'fabric';
 import {
   Square,
   Circle,
   Type,
-  Image as ImageIcon,
   Download,
-  Trash2,
-  Layers,
-  Move
+  Trash2
 } from 'lucide-react';
 
 const App = () => {
@@ -18,24 +15,39 @@ const App = () => {
   const [fillColor, setFillColor] = useState('#000000');
 
   useEffect(() => {
-    // Initialize Fabric Canvas
-    fabricCanvas.current = new fabric.Canvas(canvasRef.current, {
-      height: 600,
-      width: 800,
-      backgroundColor: '#ffffff',
-    });
+    // Guard: Ensure the canvas element exists in the DOM
+    if (!canvasRef.current) return;
 
-    // Handle object selection
-    fabricCanvas.current.on('selection:created', (e) => setSelectedObject(e.selected[0]));
-    fabricCanvas.current.on('selection:updated', (e) => setSelectedObject(e.selected[0]));
-    fabricCanvas.current.on('selection:cleared', () => setSelectedObject(null));
+    try {
+      // Initialize Fabric Canvas
+      // Note: fabric.Canvas expects the element, not the ref object
+      const canvas = new fabric.Canvas(canvasRef.current, {
+        height: 600,
+        width: 800,
+        backgroundColor: '#ffffff',
+      });
+
+      fabricCanvas.current = canvas;
+
+      // Handle object selection
+      canvas.on('selection:created', (e) => setSelectedObject(e.selected[0]));
+      canvas.on('selection:updated', (e) => setSelectedObject(e.selected[0]));
+      canvas.on('selection:cleared', () => setSelectedObject(null));
+
+      console.log("Canvas initialized successfully");
+    } catch (error) {
+      console.error("Fabric initialization failed:", error);
+    }
 
     return () => {
-      fabricCanvas.current.dispose();
+      if (fabricCanvas.current) {
+        fabricCanvas.current.dispose();
+      }
     };
   }, []);
 
   const addRect = () => {
+    if (!fabricCanvas.current) return;
     const rect = new fabric.Rect({
       top: 100,
       left: 100,
@@ -48,6 +60,7 @@ const App = () => {
   };
 
   const addCircle = () => {
+    if (!fabricCanvas.current) return;
     const circle = new fabric.Circle({
       top: 150,
       left: 150,
@@ -59,6 +72,7 @@ const App = () => {
   };
 
   const addText = () => {
+    if (!fabricCanvas.current) return;
     const text = new fabric.IText('Double click to edit', {
       top: 200,
       left: 200,
@@ -70,12 +84,14 @@ const App = () => {
   };
 
   const deleteSelected = () => {
+    if (!fabricCanvas.current) return;
     const activeObjects = fabricCanvas.current.getActiveObjects();
     fabricCanvas.current.remove(...activeObjects);
     fabricCanvas.current.discardActiveObject();
   };
 
   const downloadDesign = () => {
+    if (!fabricCanvas.current) return;
     const dataURL = fabricCanvas.current.toDataURL({
       format: 'png',
       quality: 1,
@@ -90,14 +106,14 @@ const App = () => {
     setFillColor(color);
     if (selectedObject) {
       selectedObject.set('fill', color);
-      fabricCanvas.current.renderAll();
+      if (fabricCanvas.current) fabricCanvas.current.renderAll();
     }
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 font-sans">
+    <div className="flex h-screen w-screen bg-gray-100 font-sans overflow-hidden">
       {/* Left Toolbar */}
-      <div className="w-20 bg-white border-r flex flex-col items-center py-6 gap-8 shadow-sm">
+      <div className="w-20 bg-white border-r flex flex-col items-center py-6 gap-8 shadow-sm z-10">
         <div className="font-bold text-blue-600 text-xl mb-4">C-Lite</div>
 
         <button
@@ -143,8 +159,8 @@ const App = () => {
       </div>
 
       {/* Main Workspace */}
-      <div className="flex-1 flex flex-col items-center justify-center p-8 overflow-hidden relative">
-        <div className="mb-4 flex gap-4 items-center bg-white px-4 py-2 rounded-full shadow-sm border">
+      <div className="flex-1 flex flex-col items-center justify-center p-8 overflow-auto relative">
+        <div className="mb-4 flex gap-4 items-center bg-white px-4 py-2 rounded-full shadow-sm border z-10">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500 font-medium">Fill Color:</span>
             <input
@@ -166,7 +182,7 @@ const App = () => {
       </div>
 
       {/* Right Properties Panel */}
-      <div className="w-64 bg-white border-l p-6 flex flex-col gap-6 shadow-sm">
+      <div className="w-64 bg-white border-l p-6 flex flex-col gap-6 shadow-sm z-10">
         <h3 className="font-bold text-gray-700 text-lg">Properties</h3>
 
         {selectedObject ? (
@@ -181,7 +197,7 @@ const App = () => {
                     value={Math.round(selectedObject.left)}
                     onChange={(e) => {
                       selectedObject.set('left', parseInt(e.target.value));
-                      fabricCanvas.current.renderAll();
+                      if (fabricCanvas.current) fabricCanvas.current.renderAll();
                     }}
                     className="border rounded px-2 py-1 text-sm"
                   />
@@ -193,7 +209,7 @@ const App = () => {
                     value={Math.round(selectedObject.top)}
                     onChange={(e) => {
                       selectedObject.set('top', parseInt(e.target.value));
-                      fabricCanvas.current.renderAll();
+                      if (fabricCanvas.current) fabricCanvas.current.renderAll();
                     }}
                     className="border rounded px-2 py-1 text-sm"
                   />
@@ -211,7 +227,7 @@ const App = () => {
                     value={Math.round(selectedObject.width * selectedObject.scaleX)}
                     onChange={(e) => {
                       selectedObject.set('width', parseInt(e.target.value) / selectedObject.scaleX);
-                      fabricCanvas.current.renderAll();
+                      if (fabricCanvas.current) fabricCanvas.current.renderAll();
                     }}
                     className="border rounded px-2 py-1 text-sm"
                   />
@@ -223,12 +239,10 @@ const App = () => {
                     value={Math.round(selectedObject.height * selectedObject.scaleY)}
                     onChange={(e) => {
                       selectedObject.set('height', parseInt(e.target.value) / selectedObject.scaleY);
-                      fabricCanvas.current.renderAll();
+                      if (fabricCanvas.current) fabricCanvas.current.renderAll();
                     }}
                     className="border rounded px-2 py-1 text-sm"
-                  }
-                  className="border rounded px-2 py-1 text-sm"
-                />
+                  />
                 </div>
               </div>
             </div>
@@ -237,7 +251,7 @@ const App = () => {
               <button
                 onClick={() => {
                   selectedObject.bringToFront();
-                  fabricCanvas.current.renderAll();
+                  if (fabricCanvas.current) fabricCanvas.current.renderAll();
                 }}
                 className="w-full py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium transition-colors mb-2"
               >
@@ -246,7 +260,7 @@ const App = () => {
               <button
                 onClick={() => {
                   selectedObject.sendToBack();
-                  fabricCanvas.current.renderAll();
+                  if (fabricCanvas.current) fabricCanvas.current.renderAll();
                 }}
                 className="w-full py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium transition-colors"
               >
